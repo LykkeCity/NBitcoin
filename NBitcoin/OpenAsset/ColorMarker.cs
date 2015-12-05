@@ -10,7 +10,8 @@ namespace NBitcoin.OpenAsset
 {
 	public class ColorMarker : IBitcoinSerializable
 	{
-		const ushort Tag = 0x414f;
+        // For Lykke protocol we choose LK
+        const ushort Tag = 0x4b4c;
 		public static ColorMarker TryParse(string script)
 		{
 			return TryParse(new Script(script));
@@ -67,8 +68,13 @@ namespace NBitcoin.OpenAsset
 				if(marker != Tag)
 					return false;
 				stream.ReadWrite(ref _Version);
-				if(_Version != 1)
+                if (_Version != 1 && _Version != 2)
 					return false;
+
+                if (_Version == 2)
+                {
+                    stream.ReadWrite(ref _OpCode);
+                }
 
 				ulong quantityCount = 0;
 				stream.ReadWriteAsVarInt(ref quantityCount);
@@ -84,6 +90,31 @@ namespace NBitcoin.OpenAsset
 				stream.ReadWriteAsVarString(ref _Metadata);
 				if(stream.Inner.Position != data.Length)
 					return false;
+
+                if (Version == 2)
+                {
+                    switch (OpCode)
+                    {
+                        case 0x01:
+                            var metadatalength = Quantities.Count();
+                            ExchangeFlags = new bool[metadatalength];
+                            var metadataByteCount = Math.Ceiling(metadatalength / 8.0);
+                            for (int i = 0; i < metadataByteCount; i++)
+                            {
+                                for (int j = 0; j < 8; j++)
+                                {
+                                    if (i * 8 + j >= ExchangeFlags.Count())
+                                    {
+                                        break;
+                                    }
+
+                                    ExchangeFlags[metadatalength - 1 - (i * 8 + j)] = ((Metadata[i] & (byte)Math.Pow(2, j)) == 1);
+                                }
+                            }
+                            break;
+                    }
+                }
+
 				return true;
 			}
 			catch(Exception)
@@ -202,6 +233,22 @@ namespace NBitcoin.OpenAsset
 			}
 		}
 
+        // Added for version 2
+        // 0x01 means Send Asset to exchange
+        // 0x02 means exhcnage operation
+        byte _OpCode = 0x01;
+        public byte OpCode
+        {
+            get
+            {
+                return _OpCode;
+            }
+            set
+            {
+                _OpCode = value;
+            }
+        }
+
 		ulong[] _Quantities;
 		public ulong[] Quantities
 		{
@@ -214,6 +261,20 @@ namespace NBitcoin.OpenAsset
 				_Quantities = value;
 			}
 		}
+
+        bool[] _ExchangeFlags;
+
+        public bool[] ExchangeFlags
+        {
+            get
+            {
+                return _ExchangeFlags;
+            }
+            set
+            {
+                _ExchangeFlags = value;
+            }
+        }
 
 		public void SetQuantity(uint index, long quantity)
 		{
@@ -228,6 +289,17 @@ namespace NBitcoin.OpenAsset
 		{
 			SetQuantity((uint)index, quantity);
 		}
+
+        public void SetExchangeFlag(int index)
+        {
+            if (ExchangeFlags == null)
+            {
+                ExchangeFlags = new bool[0];
+            }
+            if (ExchangeFlags.Length <= index)
+                Array.Resize(ref _ExchangeFlags, (int)index + 1);
+            ExchangeFlags[index] = true;
+        }
 
 		byte[] _Metadata = new byte[0];
 		public byte[] Metadata
@@ -255,6 +327,14 @@ namespace NBitcoin.OpenAsset
 			BitcoinStream stream = new BitcoinStream(ms, true);
 			stream.ReadWrite(Tag);
 			stream.ReadWrite(ref _Version);
+            switch (Version)
+            {
+                case 2:
+                    stream.ReadWrite(ref _OpCode);
+                    break;
+                default:
+                    break;
+            }
 			var quantityCount = (uint)this.Quantities.Length;
 			stream.ReadWriteAsVarInt(ref quantityCount);
 			for(int i = 0 ; i < quantityCount ; i++)
@@ -263,6 +343,40 @@ namespace NBitcoin.OpenAsset
 					throw new ArgumentOutOfRangeException("Quantity should not exceed " + Quantities[i]);
 				WriteLEB128(Quantities[i], stream);
 			}
+
+            switch (Version)
+            {
+                case 1:
+                    break;
+                case 2:
+                    switch (OpCode)
+                    {
+                        case 0x01: // Transfer to exchange
+                            uint metadataLength = (uint)Math.Ceiling(ExchangeFlags.Count() / 8.0);
+                            int exchangeFlagCount = ExchangeFlags.Count();
+                            if (metadataLength > 0)
+                            {
+                                Array.Resize(ref _Metadata, (int)metadataLength);
+                                for (int i = 0; i < metadataLength; i++)
+                                {
+                                    _Metadata[i] = 0;
+                                    for (int j = 0; j < 8; j++)
+                                    {
+                                        if (i * 8 + j >= ExchangeFlags.Count())
+                                        {
+                                            break;
+                                        }
+                                        _Metadata[i] += (byte)((ExchangeFlags[exchangeFlagCount - 1 - (i * 8 + j)] ? (byte)1 : (byte)0) * (byte)Math.Pow(2, j));
+                                    }
+                                }
+                            }
+                            break;
+                        case 0x02: // Exchange operation
+                            break;
+                    }
+                    break;
+            }
+
 			stream.ReadWriteAsVarString(ref _Metadata);
 			return ms.ToArray();
 		}
@@ -344,5 +458,12 @@ namespace NBitcoin.OpenAsset
 			Metadata = Encoders.ASCII.DecodeData("u=" + uri.AbsoluteUri);
 			return;
 		}
+
+        // Added to support exchange operation
+        public void SetMetadata(byte[] value)
+        {
+            Array.Resize(ref _Metadata, 20);
+            Array.Copy(value, Metadata, value.Length);
+        }
 	}
 }
