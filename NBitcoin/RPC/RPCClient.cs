@@ -71,119 +71,133 @@ namespace NBitcoin.RPC
 		}
 	}
 
-/*
-    Category            Name                        Implemented 
-    ------------------ --------------------------- -----------------------
-    ------------------ Overall control/query calls 
-    control            getinfo
-    control            help
-    control            stop
+    public static class RPCClientExtensions
+    {
+        // Added to hanle timeout
+        // from http://stackoverflow.com/questions/13838088/how-to-define-a-more-aggressive-timeout-for-httpwebrequest
+        public async static Task<T> WithTimeout<T>(this Task<T> task, int duration)
+        {
+            var retTask = await Task.WhenAny(task, Task.Delay(duration))
+                                    .ConfigureAwait(false);
 
-    ------------------ P2P networking
-    network            getnetworkinfo
-    network            addnode                      Yes
-    network            disconnectnode
-    network            getaddednodeinfo             Yes
-    network            getconnectioncount
-    network            getnettotals
-    network            getpeerinfo                  Yes
-    network            ping
-    network            setban
-    network            listbanned
-    network            clearbanned
+            if (retTask is Task<T>) return task.Result;
+            return default(T);
+        }
+    }
 
-    ------------------ Block chain and UTXO
-    blockchain         getblockchaininfo
-    blockchain         getbestblockhash             Yes
-    blockchain         getblockcount                Yes
-    blockchain         getblock                     Yes
-    blockchain         getblockhash                 Yes
-    blockchain         getchaintips
-    blockchain         getdifficulty
-    blockchain         getmempoolinfo
-    blockchain         getrawmempool                Yes
-    blockchain         gettxout
-    blockchain         gettxoutproof
-    blockchain         verifytxoutproof
-    blockchain         gettxoutsetinfo
-    blockchain         verifychain
+    /*
+        Category            Name                        Implemented 
+        ------------------ --------------------------- -----------------------
+        ------------------ Overall control/query calls 
+        control            getinfo
+        control            help
+        control            stop
 
-    ------------------ Mining
-    mining             getblocktemplate
-    mining             getmininginfo
-    mining             getnetworkhashps
-    mining             prioritisetransaction
-    mining             submitblock
+        ------------------ P2P networking
+        network            getnetworkinfo
+        network            addnode                      Yes
+        network            disconnectnode
+        network            getaddednodeinfo             Yes
+        network            getconnectioncount
+        network            getnettotals
+        network            getpeerinfo                  Yes
+        network            ping
+        network            setban
+        network            listbanned
+        network            clearbanned
 
-    ------------------ Coin generation
-    generating         getgenerate
-    generating         setgenerate
-    generating         generate
+        ------------------ Block chain and UTXO
+        blockchain         getblockchaininfo
+        blockchain         getbestblockhash             Yes
+        blockchain         getblockcount                Yes
+        blockchain         getblock                     Yes
+        blockchain         getblockhash                 Yes
+        blockchain         getchaintips
+        blockchain         getdifficulty
+        blockchain         getmempoolinfo
+        blockchain         getrawmempool                Yes
+        blockchain         gettxout
+        blockchain         gettxoutproof
+        blockchain         verifytxoutproof
+        blockchain         gettxoutsetinfo
+        blockchain         verifychain
 
-    ------------------ Raw transactions
-    rawtransactions    createrawtransaction
-    rawtransactions    decoderawtransaction
-    rawtransactions    decodescript
-    rawtransactions    getrawtransaction
-    rawtransactions    sendrawtransaction
-    rawtransactions    signrawtransaction
-    rawtransactions    fundrawtransaction
+        ------------------ Mining
+        mining             getblocktemplate
+        mining             getmininginfo
+        mining             getnetworkhashps
+        mining             prioritisetransaction
+        mining             submitblock
 
-    ------------------ Utility functions
-    util               createmultisig
-    util               validateaddress
-    util               verifymessage
-    util               estimatefee                  Yes
-    util               estimatepriority             Yes
+        ------------------ Coin generation
+        generating         getgenerate
+        generating         setgenerate
+        generating         generate
 
-    ------------------ Not shown in help
-    hidden             invalidateblock
-    hidden             reconsiderblock
-    hidden             setmocktime
-    hidden             resendwallettransactions
+        ------------------ Raw transactions
+        rawtransactions    createrawtransaction
+        rawtransactions    decoderawtransaction
+        rawtransactions    decodescript
+        rawtransactions    getrawtransaction
+        rawtransactions    sendrawtransaction
+        rawtransactions    signrawtransaction
+        rawtransactions    fundrawtransaction
 
-    ------------------ Wallet
-    wallet             addmultisigaddress
-    wallet             backupwallet                 Yes
-    wallet             dumpprivkey                  Yes
-    wallet             dumpwallet
-    wallet             encryptwallet
-    wallet             getaccountaddress
-    wallet             getaccount                   Yes
-    wallet             getaddressesbyaccount
-    wallet             getbalance
-    wallet             getnewaddress
-    wallet             getrawchangeaddress
-    wallet             getreceivedbyaccount
-    wallet             getreceivedbyaddress
-    wallet             gettransaction               Yes
-    wallet             getunconfirmedbalance
-    wallet             getwalletinfo
-    wallet             importprivkey
-    wallet             importwallet
-    wallet             importaddress
-    wallet             keypoolrefill
-    wallet             listaccounts                 Yes
-    wallet             listaddressgroupings         Yes
-    wallet             listlockunspent
-    wallet             listreceivedbyaccount
-    wallet             listreceivedbyaddress
-    wallet             listsinceblock
-    wallet             listtransactions
-    wallet             listunspent                  Yes
-    wallet             lockunspent                  Yes
-    wallet             move
-    wallet             sendfrom
-    wallet             sendmany
-    wallet             sendtoaddress
-    wallet             setaccount
-    wallet             settxfee
-    wallet             signmessage
-    wallet             walletlock
-    wallet             walletpassphrasechange
-    wallet             walletpassphrase
-*/
-	public class RPCClient : IBlockRepository
+        ------------------ Utility functions
+        util               createmultisig
+        util               validateaddress
+        util               verifymessage
+        util               estimatefee                  Yes
+        util               estimatepriority             Yes
+
+        ------------------ Not shown in help
+        hidden             invalidateblock
+        hidden             reconsiderblock
+        hidden             setmocktime
+        hidden             resendwallettransactions
+
+        ------------------ Wallet
+        wallet             addmultisigaddress
+        wallet             backupwallet                 Yes
+        wallet             dumpprivkey                  Yes
+        wallet             dumpwallet
+        wallet             encryptwallet
+        wallet             getaccountaddress
+        wallet             getaccount                   Yes
+        wallet             getaddressesbyaccount
+        wallet             getbalance
+        wallet             getnewaddress
+        wallet             getrawchangeaddress
+        wallet             getreceivedbyaccount
+        wallet             getreceivedbyaddress
+        wallet             gettransaction               Yes
+        wallet             getunconfirmedbalance
+        wallet             getwalletinfo
+        wallet             importprivkey
+        wallet             importwallet
+        wallet             importaddress
+        wallet             keypoolrefill
+        wallet             listaccounts                 Yes
+        wallet             listaddressgroupings         Yes
+        wallet             listlockunspent
+        wallet             listreceivedbyaccount
+        wallet             listreceivedbyaddress
+        wallet             listsinceblock
+        wallet             listtransactions
+        wallet             listunspent                  Yes
+        wallet             lockunspent                  Yes
+        wallet             move
+        wallet             sendfrom
+        wallet             sendmany
+        wallet             sendtoaddress
+        wallet             setaccount
+        wallet             settxfee
+        wallet             signmessage
+        wallet             walletlock
+        wallet             walletpassphrasechange
+        wallet             walletpassphrase
+    */
+    public class RPCClient : IBlockRepository
 	{
 		private readonly NetworkCredential _credentials;
 		public NetworkCredential Credentials
@@ -278,12 +292,15 @@ namespace NBitcoin.RPC
 			}
 		}
 
-		public async Task<RPCResponse> SendCommandAsync(RPCRequest request, bool throwIfRPCError = true)
+        
+
+        public async Task<RPCResponse> SendCommandAsync(RPCRequest request, bool throwIfRPCError = true)
 		{
 			var webRequest = (HttpWebRequest)WebRequest.Create(Address);
 			webRequest.Credentials = Credentials;
 			webRequest.ContentType = "application/json-rpc";
 			webRequest.Method = "POST";
+            var timeoutInSeconds = 60;
 
 			var writer = new StringWriter();
 			request.WriteJSON(writer);
@@ -299,8 +316,13 @@ namespace NBitcoin.RPC
 			RPCResponse response;
 			try
 			{
-				using(var webResponse = await webRequest.GetResponseAsync().ConfigureAwait(false))
-				{
+                //using(var webResponse = await webRequest.GetResponseAsync().ConfigureAwait(false))
+                using (var webResponse = await webRequest.GetResponseAsync().WithTimeout(timeoutInSeconds * 1000).ConfigureAwait(false))
+                {
+                    if(webResponse == null)
+                    {
+                        throw new WebException("Timeout occured while getting the response. The time out value was " + timeoutInSeconds + " seconds.");
+                    }
 					response = RPCResponse.Load(webResponse.GetResponseStream());
 				}
 				if(throwIfRPCError)
