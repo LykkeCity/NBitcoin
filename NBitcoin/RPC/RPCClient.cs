@@ -336,7 +336,23 @@ namespace NBitcoin.RPC
 				if(throwIfRPCError)
 					response.ThrowIfError();
 			}
-			return response;
+            catch (AggregateException ae)
+            {
+                var ex = ae.InnerException as WebException;
+                if (ex != null)
+                {
+                    if (ex.Response == null)
+                        throw;
+                    response = RPCResponse.Load(ex.Response.GetResponseStream());
+                    if (throwIfRPCError)
+                        response.ThrowIfError();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+            return response;
 		}
 
 		#region P2P Networking
